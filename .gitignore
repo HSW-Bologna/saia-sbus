@@ -5,3 +5,4 @@
 *_test
 gel_conf.h
 .cache
+compile_commands.json

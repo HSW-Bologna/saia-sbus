@@ -179,3 +179,19 @@ void test_write_timer() {
     buffer[0] = 33;
     try_packet(1, SBUS_COMMAND_WRITE_TIMER, buffer, buffer[0] + 2);
 }
+
+void test_read_registers() {
+    uint8_t  rcount      = 2;
+    size_t   data_len    = (rcount + 1) * 4;
+    uint16_t buffer[256] = {0};
+    uint16_t crc         = sbus_crc16_9bit(buffer, data_len);
+    buffer[data_len]     = (crc >> 8) & 0xFF;
+    buffer[data_len + 1] = crc & 0xFF;
+
+    sbus_request_t request = SBUS_REQUEST(1, SBUS_COMMAND_READ_REGISTER, {rcount, 0, 0});
+
+    size_t len = 256;
+    int    res = sbus_validate_response(&request, buffer, &len);
+    TEST_ASSERT_EQUAL(SBUS_OK, res);
+    TEST_ASSERT_EQUAL(data_len + 2, len);
+}

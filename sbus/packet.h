@@ -3,13 +3,14 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
-#define SBUS_PACKET(dest, command, data)                                                                               \
+#define SBUS_REQUEST(dest, cmd, ...)                                                                                   \
     ({                                                                                                                 \
-        uint8_t        buffer[] = data;                                                                                \
+        uint8_t        buffer[] = __VA_ARGS__;                                                                         \
         sbus_request_t request;                                                                                        \
         request.destination = dest;                                                                                    \
-        request.command     = command;                                                                                 \
+        request.command     = cmd;                                                                                     \
         request.data_len    = sizeof(buffer) / sizeof(uint8_t);                                                        \
         memcpy(request.data, buffer, request.data_len);                                                                \
         request;                                                                                                       \
@@ -19,6 +20,10 @@
 #define SBUS_PACKET_REG_ADDR(packet) ((uint16_t)(packet->data[1] << 8) && (uint16_t)(packet->data[2]))
 
 #define SBUS_ADDRESS(addr) (0x0100 | addr)
+
+#define SBUS_ACK               0x06
+#define SBUS_NAK               0x15
+#define SBUS_BROADCAST_ADDRESS 0xFF
 
 typedef enum {
     SBUS_COMMAND_READ_COUNTER          = 0,
@@ -67,5 +72,7 @@ typedef struct {
 size_t sbus_crc16_9bit(uint16_t *buffer, size_t length);
 size_t sbus_crc16_8bit(uint8_t *buffer, size_t length);
 int    sbus_packet_parse_request(uint16_t *buffer, size_t *len, sbus_request_t *request);
+size_t sbus_packet_response_length(sbus_request_t *request);
+int    sbus_validate_response(sbus_request_t *request, uint16_t *buffer, size_t *len);
 
 #endif
