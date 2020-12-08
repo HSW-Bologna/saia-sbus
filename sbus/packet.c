@@ -8,8 +8,8 @@
 #define IS_ADDRESS(x) (((x)&ADDRESS_MASK) > 0)
 #define IS_DATA(x)    (!IS_ADDRESS(x))
 
-static int    unpack_command(sbus_command_code_t command, uint16_t *buffer, size_t *len, sbus_request_t *request);
-static size_t check_data(uint16_t *buffer, size_t len);
+static int unpack_command(sbus_command_code_t command, uint16_t *buffer, size_t *len, sbus_request_t *request);
+static int check_data(uint16_t *buffer, size_t len);
 
 
 int sbus_packet_parse_request(uint16_t *buffer, size_t *len, sbus_request_t *request) {
@@ -75,11 +75,16 @@ int sbus_validate_response(sbus_request_t *request, uint16_t *buffer, size_t *le
         return SBUS_OK;
     }
 
-    if (*len < required_len + 2)
+    if (*len < required_len) {
+        *len = 0;
         return SBUS_INCOMPLETE_PACKET;
+    }
 
-    if (check_data(buffer, required_len + 2) != 0)
-        return SBUS_INVALID_DATA;
+    int index = check_data(buffer, required_len);
+    if (index >= 0) {
+        *len = (size_t)index;
+        return SBUS_NOT_FOUND;
+    }
 
     switch (request->command) {
         case SBUS_COMMAND_WRITE_COUNTER:
@@ -94,9 +99,9 @@ int sbus_validate_response(sbus_request_t *request, uint16_t *buffer, size_t *le
                 return SBUS_INVALID_DATA;
 
         default: {
-            uint16_t crc       = sbus_crc16_9bit(buffer, required_len);
-            uint16_t found_crc = (uint16_t)((buffer[required_len] << 8) | buffer[required_len + 1]);
-            *len               = required_len + 2;
+            uint16_t crc       = sbus_crc16_9bit(buffer, required_len - 2);
+            uint16_t found_crc = (uint16_t)((buffer[required_len - 2] << 8) | buffer[required_len - 1]);
+            *len               = required_len;
 
             if (crc != found_crc)
                 return SBUS_WRONG_CRC;
@@ -117,18 +122,18 @@ size_t sbus_packet_response_length(sbus_request_t *request) {
         case SBUS_COMMAND_READ_COUNTER:
         case SBUS_COMMAND_READ_REGISTER:
         case SBUS_COMMAND_READ_TIMER:
-            return (SBUS_PACKET_R_COUNT(request) + 1) * 4;
+            return (SBUS_PACKET_R_COUNT(request) + 1) * 4 + 2;
 
         case SBUS_COMMAND_READ_DISPLAY_REGISTER:
-            return 4;
+            return 4 + 2;
 
         case SBUS_COMMAND_READ_FLAG:
         case SBUS_COMMAND_READ_INPUT:
         case SBUS_COMMAND_READ_OUTPUT:
-            return (SBUS_PACKET_R_COUNT(request) + 1) / 8;
+            return (SBUS_PACKET_R_COUNT(request) + 1) / 8 + 2;
 
         case SBUS_COMMAND_READ_REAL_TIME_CLOCK:
-            return 6;
+            return 6 + 2;
 
         case SBUS_COMMAND_WRITE_COUNTER:
         case SBUS_COMMAND_WRITE_FLAG:
@@ -147,7 +152,7 @@ size_t sbus_packet_response_length(sbus_request_t *request) {
         case SBUS_COMMAND_READ_PCD_STATUS_CPU_6:
         case SBUS_COMMAND_READ_PCD_STATUS_SELF:
         case SBUS_COMMAND_READ_STATION_NUMBER:
-            return 1;
+            return 1 + 2;
 
         default:
             assert(0);
@@ -156,6 +161,7 @@ size_t sbus_packet_response_length(sbus_request_t *request) {
 
     return 0;
 }
+
 
 size_t sbus_crc16_8bit(uint8_t *buffer, size_t length) {
     int      i;
@@ -270,7 +276,7 @@ static int unpack_command(sbus_command_code_t command, uint16_t *buffer, size_t 
             return SBUS_UNKNOWN_COMMAND;
     }
 
-    if (check_data(buffer, *len) != 0) {
+    if (check_data(buffer, *len) >= 0) {
         return SBUS_INVALID_DATA;
     }
 
@@ -284,11 +290,11 @@ static int unpack_command(sbus_command_code_t command, uint16_t *buffer, size_t 
 }
 
 
-static size_t check_data(uint16_t *buffer, size_t len) {
-    for (size_t i = 0; i < len; i++) {
+static int check_data(uint16_t *buffer, size_t len) {
+    for (int i = 0; i < (int)len; i++) {
         if (IS_ADDRESS(buffer[i]))
             return i;
     }
 
-    return 0;
+    return -1;
 }
