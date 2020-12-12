@@ -213,6 +213,8 @@ static int unpack_command(sbus_command_code_t command, uint16_t *buffer, size_t 
         return SBUS_INCOMPLETE_PACKET;                                                                                 \
     *len = required;
 
+    request->command = command;
+
     switch (command) {
         case SBUS_COMMAND_READ_DISPLAY_REGISTER:
         case SBUS_COMMAND_READ_REAL_TIME_CLOCK:
@@ -280,7 +282,6 @@ static int unpack_command(sbus_command_code_t command, uint16_t *buffer, size_t 
         return SBUS_INVALID_DATA;
     }
 
-    request->command  = command;
     request->data_len = *len;
     for (size_t i = 0; i < *len; i++) {
         request->data[i] = (uint8_t)buffer[i];
