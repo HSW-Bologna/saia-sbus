@@ -195,3 +195,15 @@ void test_read_registers() {
     TEST_ASSERT_EQUAL(SBUS_OK, res);
     TEST_ASSERT_EQUAL(data_len + 2, len);
 }
+
+
+void test_field_data() {
+    uint16_t       data[]  = {0x00, 0x02, 0x00, 0x4B, 0x02, 0x08, 0x00, 0xCA, 0x00, 0xB4,
+                       0x00, 0x00, 0xF1, 0x22, 0x41, 0x01, 0x64, 0x50, 0xCA, 0x00};
+    sbus_request_t request = SBUS_REQUEST(75, 6, {3, 0, 9});
+
+    size_t len = 20;
+    sbus_result_code_t res = sbus_validate_response(&request, data, &len);
+
+    TEST_ASSERT_EQUAL(res, SBUS_OK);
+}
