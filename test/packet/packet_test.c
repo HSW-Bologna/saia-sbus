@@ -8,15 +8,14 @@ void setUp() {}
 void tearDown() {}
 
 void try_simple_packet(uint8_t address, uint8_t command, uint8_t *data, size_t data_len) {
-    uint16_t buffer[256] = {0};
-    buffer[0]            = SBUS_ADDRESS(address);
-    buffer[1]            = command;
-    for (size_t i = 0; i < data_len; i++)
-        buffer[2 + i] = data[i];
-    uint16_t crc = sbus_crc16_9bit(buffer, 2 + data_len);
-
-    buffer[2 + data_len]     = (crc >> 8) & 0xFF;
-    buffer[2 + data_len + 1] = crc & 0xFF;
+    uint16_t       buffer[256]  = {0};
+    sbus_request_t request_sent = {
+        .destination = address,
+        .command     = command,
+        .data_len    = data_len,
+    };
+    memcpy(request_sent.data, data, data_len);
+    sbus_packet_serialize_request(buffer, &request_sent);
 
     sbus_request_t request;
     size_t         len = 2 + data_len + 2;
@@ -188,10 +187,21 @@ void test_read_registers() {
     buffer[data_len]     = (crc >> 8) & 0xFF;
     buffer[data_len + 1] = crc & 0xFF;
 
+    uint8_t  buffer_8bit[256] = {0};
+    uint16_t crc_8bit         = sbus_crc16_8bit(buffer_8bit, data_len);
+    buffer_8bit[data_len]     = (crc_8bit >> 8) & 0xFF;
+    buffer_8bit[data_len + 1] = crc_8bit & 0xFF;
+    TEST_ASSERT_EQUAL(crc_8bit, crc);
+
     sbus_request_t request = SBUS_REQUEST(1, SBUS_COMMAND_READ_REGISTER, {rcount, 0, 0});
 
     size_t len = 256;
-    int    res = sbus_validate_response(&request, buffer, &len);
+    int    res = sbus_packet_validate_response_9bit(&request, buffer, &len);
+    TEST_ASSERT_EQUAL(SBUS_OK, res);
+    TEST_ASSERT_EQUAL(data_len + 2, len);
+
+    len = 256;
+    res = sbus_packet_validate_response_8bit(&request, buffer_8bit, &len);
     TEST_ASSERT_EQUAL(SBUS_OK, res);
     TEST_ASSERT_EQUAL(data_len + 2, len);
 }
@@ -202,8 +212,8 @@ void test_field_data() {
                        0x00, 0x00, 0xF1, 0x22, 0x41, 0x01, 0x64, 0x50, 0xCA, 0x00};
     sbus_request_t request = SBUS_REQUEST(75, 6, {3, 0, 9});
 
-    size_t len = 20;
-    sbus_result_code_t res = sbus_validate_response(&request, data, &len);
+    size_t             len = 20;
+    sbus_result_t res = sbus_packet_validate_response_9bit(&request, data, &len);
 
     TEST_ASSERT_EQUAL(res, SBUS_OK);
 }

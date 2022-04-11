@@ -12,7 +12,20 @@ static int unpack_command(sbus_command_code_t command, uint16_t *buffer, size_t 
 static int check_data(uint16_t *buffer, size_t len);
 
 
-int sbus_packet_parse_request(uint16_t *buffer, size_t *len, sbus_request_t *request) {
+size_t sbus_packet_serialize_request(uint16_t *buffer, const sbus_request_t *request) {
+    buffer[0] = SBUS_ADDRESS(request->destination);
+    buffer[1] = request->command;
+    for (size_t i = 0; i < request->data_len; i++) {
+        buffer[2 + i] = request->data[i];
+    }
+    uint16_t crc                      = sbus_crc16_9bit(buffer, 2 + request->data_len);
+    buffer[2 + request->data_len]     = (crc >> 8) & 0xFF;
+    buffer[2 + request->data_len + 1] = crc & 0xFF;
+    return 4 + request->data_len;
+}
+
+
+sbus_result_t sbus_packet_parse_request(uint16_t *buffer, size_t *len, sbus_request_t *request) {
     for (size_t i = 0; i < *len; i++) {
         if (IS_ADDRESS(buffer[i])) {
             int     start       = i;
@@ -67,7 +80,7 @@ int sbus_packet_parse_request(uint16_t *buffer, size_t *len, sbus_request_t *req
 }
 
 
-int sbus_validate_response(sbus_request_t *request, uint16_t *buffer, size_t *len) {
+sbus_result_t sbus_packet_validate_response_9bit(sbus_request_t *request, uint16_t *buffer, size_t *len) {
     size_t required_len = sbus_packet_response_length(request);
 
     if (required_len == 0) {
@@ -112,6 +125,48 @@ int sbus_validate_response(sbus_request_t *request, uint16_t *buffer, size_t *le
 
     return SBUS_OK;
 }
+
+
+sbus_result_t sbus_packet_validate_response_8bit(sbus_request_t *request, uint8_t *buffer, size_t *len) {
+    size_t required_len = sbus_packet_response_length(request);
+
+    if (required_len == 0) {
+        *len = 0;
+        return SBUS_OK;
+    }
+
+    if (*len < required_len) {
+        *len = 0;
+        return SBUS_INCOMPLETE_PACKET;
+    }
+
+    switch (request->command) {
+        case SBUS_COMMAND_WRITE_COUNTER:
+        case SBUS_COMMAND_WRITE_FLAG:
+        case SBUS_COMMAND_WRITE_REAL_TIME_CLOCK:
+        case SBUS_COMMAND_WRITE_OUTPUT:
+        case SBUS_COMMAND_WRITE_REGISTER:
+        case SBUS_COMMAND_WRITE_TIMER:
+            if ((buffer[0] == SBUS_ACK || buffer[0] == SBUS_NAK) && buffer[1] == 0x00)
+                return SBUS_OK;
+            else
+                return SBUS_INVALID_DATA;
+
+        default: {
+            uint16_t crc       = sbus_crc16_8bit(buffer, required_len - 2);
+            uint16_t found_crc = (uint16_t)((buffer[required_len - 2] << 8) | buffer[required_len - 1]);
+            *len               = required_len;
+
+            if (crc != found_crc)
+                return SBUS_WRONG_CRC;
+            else
+                return SBUS_OK;
+        }
+    }
+
+    return SBUS_OK;
+}
+
 
 
 size_t sbus_packet_response_length(sbus_request_t *request) {
