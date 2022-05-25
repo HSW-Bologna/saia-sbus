@@ -15,7 +15,7 @@
         memcpy(request.data, buffer, request.data_len);                                                                \
         request;                                                                                                       \
     })
-#define SBUS_READ_REGISTERS_REQUEST(dest, start, num)                                                                   \
+#define SBUS_READ_REGISTERS_REQUEST(dest, start, num)                                                                  \
     ((sbus_request_t){.destination = dest,                                                                             \
                       .command     = SBUS_COMMAND_READ_REGISTER,                                                       \
                       .data_len    = 3,                                                                                \
@@ -23,8 +23,8 @@
 #define SBUS_WRITE_REGISTER_REQUEST(dest, start, reg)                                                                  \
     ((sbus_request_t){.destination = dest,                                                                             \
                       .command     = SBUS_COMMAND_WRITE_REGISTER,                                                      \
-                      .data_len    = 3,                                                                                \
-                      .data        = {0, (start >> 8) & 0xFF, start & 0xFF, (reg >> 24) & 0xFF, (reg >> 16) & 0xFF,    \
+                      .data_len    = 7,                                                                                \
+                      .data        = {5, (start >> 8) & 0xFF, start & 0xFF, (reg >> 24) & 0xFF, (reg >> 16) & 0xFF,    \
                                (reg >> 8) & 0xFF, reg & 0xFF}})
 
 #define SBUS_PACKET_R_COUNT(packet)  (packet->data[0])
