@@ -70,6 +70,7 @@ typedef enum {
     SBUS_UNKNOWN_COMMAND   = -3,
     SBUS_NOT_FOUND         = -4,
     SBUS_WRONG_CRC         = -5,
+    SBUS_INVALID_ARGS      = -6,
 } sbus_result_t;
 
 
@@ -88,5 +89,7 @@ sbus_result_t sbus_packet_validate_response_9bit(sbus_request_t *request, uint16
 sbus_result_t sbus_packet_validate_response_8bit(sbus_request_t *request, uint8_t *buffer, size_t *len);
 size_t        sbus_packet_serialize_request(uint16_t *buffer, const sbus_request_t *request);
 size_t        sbus_packet_response_length(sbus_request_t *request);
+int           sbus_packet_serialize_register_read_response(uint16_t *buffer, size_t len, uint32_t *registers, size_t count,
+                                                    sbus_request_t *request);
 
 #endif

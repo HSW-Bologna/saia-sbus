@@ -147,10 +147,11 @@ sbus_result_t sbus_packet_validate_response_8bit(sbus_request_t *request, uint8_
         case SBUS_COMMAND_WRITE_OUTPUT:
         case SBUS_COMMAND_WRITE_REGISTER:
         case SBUS_COMMAND_WRITE_TIMER:
-            if ((buffer[0] == SBUS_ACK || buffer[0] == SBUS_NAK) && buffer[1] == 0x00)
+            if ((buffer[0] == SBUS_ACK || buffer[0] == SBUS_NAK) && buffer[1] == 0x00) {
                 return SBUS_OK;
-            else
+            } else {
                 return SBUS_INVALID_DATA;
+            }
 
         default: {
             uint16_t crc       = sbus_crc16_8bit(buffer, required_len - 2);
@@ -215,6 +216,28 @@ size_t sbus_packet_response_length(sbus_request_t *request) {
     }
 
     return 0;
+}
+
+
+int sbus_packet_serialize_register_read_response(uint16_t *buffer, size_t len, uint32_t *registers, size_t count,
+                                          sbus_request_t *request) {
+    size_t expected_len = sbus_packet_response_length(request);
+    if (len < expected_len || request->command != SBUS_COMMAND_READ_REGISTER) {
+        return -1;
+    }
+
+    for (size_t i = 0; i < count; i++) {
+        buffer[i * 4 + 0] = (registers[i] >> 24) & 0xFF;
+        buffer[i * 4 + 1] = (registers[i] >> 16) & 0xFF;
+        buffer[i * 4 + 2] = (registers[i] >> 8) & 0xFF;
+        buffer[i * 4 + 3] = registers[i] & 0xFF;
+    }
+
+    uint16_t crc          = sbus_crc16_9bit(buffer, count * 4);
+    buffer[count * 4]     = (crc >> 8) & 0xFF;
+    buffer[count * 4 + 1] = crc & 0xFF;
+
+    return count * 4 + 2;
 }
 
 
