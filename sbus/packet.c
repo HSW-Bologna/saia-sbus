@@ -14,7 +14,7 @@ static int check_data(uint16_t *buffer, size_t len);
 
 size_t sbus_packet_serialize_request(uint16_t *buffer, const sbus_request_t *request) {
     buffer[0] = SBUS_ADDRESS(request->destination);
-    buffer[1] = request->command;
+    buffer[1] = (uint16_t)request->command;
     for (size_t i = 0; i < request->data_len; i++) {
         buffer[2 + i] = request->data[i];
     }
@@ -28,10 +28,10 @@ size_t sbus_packet_serialize_request(uint16_t *buffer, const sbus_request_t *req
 sbus_result_t sbus_packet_parse_request(uint16_t *buffer, size_t *len, sbus_request_t *request) {
     for (size_t i = 0; i < *len; i++) {
         if (IS_ADDRESS(buffer[i])) {
-            int     start       = i;
-            uint8_t destination = buffer[start];
+            size_t  start       = i;
+            uint8_t destination = (uint8_t)(buffer[start] & 0xFF);
 
-            if (start + 3 > (int)*len) {
+            if (start + 3 > *len) {
                 *len = start;
                 return SBUS_INCOMPLETE_PACKET;     // The packet is not complete yet
             }
@@ -41,7 +41,7 @@ sbus_result_t sbus_packet_parse_request(uint16_t *buffer, size_t *len, sbus_requ
                 return SBUS_INVALID_DATA;     // Invalid data
             }
 
-            uint8_t command  = buffer[start + 1];
+            uint8_t command  = (uint8_t)(buffer[start + 1] & 0xFF);
             size_t  data_len = *len - (start + 2);
             int     res      = unpack_command(command, &buffer[start + 2], &data_len, request);
 
@@ -220,7 +220,7 @@ size_t sbus_packet_response_length(sbus_request_t *request) {
 
 
 int sbus_packet_serialize_register_read_response(uint16_t *buffer, size_t len, uint32_t *registers, size_t count,
-                                          sbus_request_t *request) {
+                                                 sbus_request_t *request) {
     size_t expected_len = sbus_packet_response_length(request);
     if (len < expected_len || request->command != SBUS_COMMAND_READ_REGISTER) {
         return -1;
@@ -237,11 +237,11 @@ int sbus_packet_serialize_register_read_response(uint16_t *buffer, size_t len, u
     buffer[count * 4]     = (crc >> 8) & 0xFF;
     buffer[count * 4 + 1] = crc & 0xFF;
 
-    return count * 4 + 2;
+    return (int)count * 4 + 2;
 }
 
 
-size_t sbus_crc16_8bit(uint8_t *buffer, size_t length) {
+uint16_t sbus_crc16_8bit(uint8_t *buffer, size_t length) {
     int      i;
     uint16_t crc;
     uint16_t data;
@@ -250,10 +250,10 @@ size_t sbus_crc16_8bit(uint8_t *buffer, size_t length) {
     crc = 0;
     do {
         data = *buffer;
-        crc  = crc ^ (data << 8);
+        crc  = (uint16_t)(crc ^ (data << 8));
         for (i = 0; i < 8; i++) {
             if (crc & 0x8000)
-                crc = (crc << 1) ^ 0x1021;
+                crc = (uint16_t)((crc << 1) ^ 0x1021);
             else
                 crc <<= 1;
         }
@@ -263,7 +263,7 @@ size_t sbus_crc16_8bit(uint8_t *buffer, size_t length) {
 }
 
 
-size_t sbus_crc16_9bit(uint16_t *buffer, size_t length) {
+uint16_t sbus_crc16_9bit(uint16_t *buffer, size_t length) {
     int      i;
     uint16_t crc;
     uint16_t data;
@@ -272,10 +272,10 @@ size_t sbus_crc16_9bit(uint16_t *buffer, size_t length) {
     crc = 0;
     do {
         data = (uint8_t)((*buffer) & 0xFF);
-        crc  = crc ^ (data << 8);
+        crc  = (uint16_t)(crc ^ (data << 8));
         for (i = 0; i < 8; i++) {
             if (crc & 0x8000)
-                crc = (crc << 1) ^ 0x1021;
+                crc = (uint16_t)((crc << 1) ^ 0x1021);
             else
                 crc <<= 1;
         }
@@ -360,7 +360,7 @@ static int unpack_command(sbus_command_code_t command, uint16_t *buffer, size_t 
         return SBUS_INVALID_DATA;
     }
 
-    request->data_len = *len;
+    request->data_len = (uint8_t)*len;
     for (size_t i = 0; i < *len; i++) {
         request->data[i] = (uint8_t)buffer[i];
     }

@@ -25,7 +25,7 @@
                       .command     = SBUS_COMMAND_WRITE_REGISTER,                                                      \
                       .data_len    = 7,                                                                                \
                       .data        = {5, (start >> 8) & 0xFF, start & 0xFF, (reg >> 24) & 0xFF, (reg >> 16) & 0xFF,    \
-                               (reg >> 8) & 0xFF, reg & 0xFF}})
+                                      (reg >> 8) & 0xFF, reg & 0xFF}})
 
 #define SBUS_PACKET_R_COUNT(packet)  (packet->data[0])
 #define SBUS_PACKET_REG_ADDR(packet) ((uint16_t)(packet->data[1] << 8) && (uint16_t)(packet->data[2]))
@@ -81,15 +81,15 @@ typedef struct {
     uint8_t             data[256];
 } sbus_request_t;
 
-size_t        sbus_crc16_9bit(uint16_t *buffer, size_t length);
-size_t        sbus_crc16_8bit(uint8_t *buffer, size_t length);
+uint16_t      sbus_crc16_9bit(uint16_t *buffer, size_t length);
+uint16_t      sbus_crc16_8bit(uint8_t *buffer, size_t length);
 sbus_result_t sbus_packet_parse_request(uint16_t *buffer, size_t *len, sbus_request_t *request);
 size_t        sbus_packet_response_length(sbus_request_t *request);
 sbus_result_t sbus_packet_validate_response_9bit(sbus_request_t *request, uint16_t *buffer, size_t *len);
 sbus_result_t sbus_packet_validate_response_8bit(sbus_request_t *request, uint8_t *buffer, size_t *len);
 size_t        sbus_packet_serialize_request(uint16_t *buffer, const sbus_request_t *request);
 size_t        sbus_packet_response_length(sbus_request_t *request);
-int           sbus_packet_serialize_register_read_response(uint16_t *buffer, size_t len, uint32_t *registers, size_t count,
-                                                    sbus_request_t *request);
+int sbus_packet_serialize_register_read_response(uint16_t *buffer, size_t len, uint32_t *registers, size_t count,
+                                                 sbus_request_t *request);
 
 #endif
